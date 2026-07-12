@@ -106,58 +106,102 @@ function Validate-User {
     return $global:UserCredentials.ContainsKey($Username) -and $global:UserCredentials[$Username] -eq $Password
 }
 
+function Set-RoundedWindow {
+    param(
+        [System.Windows.Forms.Form]$Form,
+        [int]$Radius = 20
+    )
+
+    $typeDefinition = @"
+using System;
+using System.Runtime.InteropServices;
+
+public class Gdi32 {
+    [DllImport("gdi32.dll")]
+    public static extern IntPtr CreateRoundRectRgn(int nLeftRect, int nTopRect, int nRightRect, int nBottomRect, int nWidthEllipse, int nHeightEllipse);
+}
+"@
+    Add-Type -TypeDefinition $typeDefinition -ErrorAction SilentlyContinue | Out-Null
+    $rgn = [Gdi32]::CreateRoundRectRgn(0, 0, $Form.Width, $Form.Height, $Radius, $Radius)
+    $Form.Region = [System.Drawing.Region]::FromHrgn($rgn)
+}
+
 function Show-LoginForm {
     Add-Type -AssemblyName System.Windows.Forms, System.Drawing
 
     $form = New-Object System.Windows.Forms.Form
     $form.Text = 'MalkaviaGuard Login'
-    $form.Size = New-Object System.Drawing.Size(340, 260)
+    $form.Size = New-Object System.Drawing.Size(360, 300)
     $form.StartPosition = 'CenterScreen'
     $form.FormBorderStyle = 'FixedDialog'
     $form.MaximizeBox = $false
     $form.MinimizeBox = $false
-    $form.BackColor = [System.Drawing.Color]::FromArgb(18, 24, 40)
+    $form.BackColor = [System.Drawing.Color]::FromArgb(15, 23, 38)
+    $form.Font = New-Object System.Drawing.Font('Segoe UI', 9)
+
+    Set-RoundedWindow -Form $form -Radius 18
 
     $header = New-Object System.Windows.Forms.Label
     $header.Text = 'Secure Login'
     $header.ForeColor = [System.Drawing.Color]::White
-    $header.Font = New-Object System.Drawing.Font('Segoe UI', 14, 'Bold')
+    $header.Font = New-Object System.Drawing.Font('Segoe UI', 16, [System.Drawing.FontStyle]::Bold)
     $header.AutoSize = $true
-    $header.Location = New-Object System.Drawing.Point(110, 20)
+    $header.Location = New-Object System.Drawing.Point(30, 22)
+
+    $subHeader = New-Object System.Windows.Forms.Label
+    $subHeader.Text = 'Enter your credentials to continue.'
+    $subHeader.ForeColor = [System.Drawing.Color]::FromArgb(180, 180, 180)
+    $subHeader.Font = New-Object System.Drawing.Font('Segoe UI', 9)
+    $subHeader.AutoSize = $true
+    $subHeader.Location = New-Object System.Drawing.Point(30, 56)
 
     $userLabel = New-Object System.Windows.Forms.Label
-    $userLabel.Text = 'Username:'
-    $userLabel.ForeColor = [System.Drawing.Color]::White
-    $userLabel.Location = New-Object System.Drawing.Point(30, 70)
+    $userLabel.Text = 'Username'
+    $userLabel.ForeColor = [System.Drawing.Color]::FromArgb(200, 200, 200)
+    $userLabel.Location = New-Object System.Drawing.Point(30, 95)
     $userLabel.AutoSize = $true
 
     $username = New-Object System.Windows.Forms.TextBox
-    $username.Location = New-Object System.Drawing.Point(120, 68)
-    $username.Width = 170
+    $username.Location = New-Object System.Drawing.Point(30, 115)
+    $username.Width = 295
+    $username.Height = 28
+    $username.BackColor = [System.Drawing.Color]::FromArgb(24, 34, 52)
+    $username.ForeColor = [System.Drawing.Color]::White
+    $username.BorderStyle = 'FixedSingle'
 
     $passLabel = New-Object System.Windows.Forms.Label
-    $passLabel.Text = 'Password:'
-    $passLabel.ForeColor = [System.Drawing.Color]::White
-    $passLabel.Location = New-Object System.Drawing.Point(30, 110)
+    $passLabel.Text = 'Password'
+    $passLabel.ForeColor = [System.Drawing.Color]::FromArgb(200, 200, 200)
+    $passLabel.Location = New-Object System.Drawing.Point(30, 150)
     $passLabel.AutoSize = $true
 
     $password = New-Object System.Windows.Forms.TextBox
-    $password.Location = New-Object System.Drawing.Point(120, 108)
-    $password.Width = 170
+    $password.Location = New-Object System.Drawing.Point(30, 170)
+    $password.Width = 295
+    $password.Height = 28
+    $password.BackColor = [System.Drawing.Color]::FromArgb(24, 34, 52)
+    $password.ForeColor = [System.Drawing.Color]::White
+    $password.BorderStyle = 'FixedSingle'
     $password.UseSystemPasswordChar = $true
 
     $statusLabel = New-Object System.Windows.Forms.Label
     $statusLabel.Text = ''
     $statusLabel.ForeColor = [System.Drawing.Color]::White
-    $statusLabel.Location = New-Object System.Drawing.Point(30, 145)
+    $statusLabel.Location = New-Object System.Drawing.Point(30, 205)
     $statusLabel.AutoSize = $true
 
     $loginButton = New-Object System.Windows.Forms.Button
     $loginButton.Text = 'Login'
-    $loginButton.Size = New-Object System.Drawing.Size(260, 32)
-    $loginButton.Location = New-Object System.Drawing.Point(30, 175)
+    $loginButton.Size = New-Object System.Drawing.Size(295, 36)
+    $loginButton.Location = New-Object System.Drawing.Point(30, 230)
     $loginButton.BackColor = [System.Drawing.Color]::FromArgb(88, 164, 255)
     $loginButton.ForeColor = [System.Drawing.Color]::White
+    $loginButton.FlatStyle = 'Flat'
+    $loginButton.FlatAppearance.BorderSize = 0
+    $loginButton.Cursor = 'Hand'
+
+    $loginButton.Add_MouseEnter({ $loginButton.BackColor = [System.Drawing.Color]::FromArgb(70, 145, 235) })
+    $loginButton.Add_MouseLeave({ $loginButton.BackColor = [System.Drawing.Color]::FromArgb(88, 164, 255) })
 
     $loginButton.Add_Click({
         if (Validate-User $username.Text $password.Text) {
@@ -171,7 +215,7 @@ function Show-LoginForm {
         }
     })
 
-    $form.Controls.AddRange(@($header, $userLabel, $username, $passLabel, $password, $statusLabel, $loginButton))
+    $form.Controls.AddRange(@($header, $subHeader, $userLabel, $username, $passLabel, $password, $statusLabel, $loginButton))
     $form.Add_Shown({ $username.Focus() })
 
     $form.ShowDialog() | Out-Null
@@ -189,41 +233,51 @@ function Show-StartupStages {
 
     $form = New-Object System.Windows.Forms.Form
     $form.Text = 'MalkaviaGuard Startup'
-    $form.Size = New-Object System.Drawing.Size(420, 210)
+    $form.Size = New-Object System.Drawing.Size(440, 220)
     $form.StartPosition = 'CenterScreen'
     $form.FormBorderStyle = 'FixedDialog'
     $form.MaximizeBox = $false
     $form.MinimizeBox = $false
-    $form.BackColor = [System.Drawing.Color]::FromArgb(18, 24, 40)
+    $form.BackColor = [System.Drawing.Color]::FromArgb(15, 23, 38)
+    $form.Font = New-Object System.Drawing.Font('Segoe UI', 9)
+
+    Set-RoundedWindow -Form $form -Radius 18
 
     $title = New-Object System.Windows.Forms.Label
     $title.Text = 'MalkaviaGuard'
     $title.ForeColor = [System.Drawing.Color]::White
-    $title.Font = New-Object System.Drawing.Font('Segoe UI', 18, 'Bold')
+    $title.Font = New-Object System.Drawing.Font('Segoe UI', 18, [System.Drawing.FontStyle]::Bold)
     $title.AutoSize = $true
-    $title.Location = New-Object System.Drawing.Point(24, 20)
+    $title.Location = New-Object System.Drawing.Point(30, 25)
+
+    $subtitle = New-Object System.Windows.Forms.Label
+    $subtitle.Text = 'Starting anti-cheat services'
+    $subtitle.ForeColor = [System.Drawing.Color]::FromArgb(180, 180, 180)
+    $subtitle.Font = New-Object System.Drawing.Font('Segoe UI', 9)
+    $subtitle.AutoSize = $true
+    $subtitle.Location = New-Object System.Drawing.Point(30, 60)
 
     $stageLabel = New-Object System.Windows.Forms.Label
     $stageLabel.Text = 'Preparing...'
     $stageLabel.ForeColor = [System.Drawing.Color]::White
     $stageLabel.Font = New-Object System.Drawing.Font('Segoe UI', 10)
     $stageLabel.AutoSize = $true
-    $stageLabel.Location = New-Object System.Drawing.Point(24, 68)
+    $stageLabel.Location = New-Object System.Drawing.Point(30, 95)
 
     $progressBar = New-Object System.Windows.Forms.ProgressBar
-    $progressBar.Location = New-Object System.Drawing.Point(24, 100)
-    $progressBar.Size = New-Object System.Drawing.Size(360, 24)
+    $progressBar.Location = New-Object System.Drawing.Point(30, 125)
+    $progressBar.Size = New-Object System.Drawing.Size(380, 26)
     $progressBar.Style = 'Continuous'
     $progressBar.Value = 0
 
     $footer = New-Object System.Windows.Forms.Label
-    $footer.Text = 'Please wait...'
-    $footer.ForeColor = [System.Drawing.Color]::WhiteSmoke
+    $footer.Text = 'Please wait while MalkaviaGuard initializes.'
+    $footer.ForeColor = [System.Drawing.Color]::FromArgb(185, 185, 185)
     $footer.AutoSize = $true
-    $footer.Location = New-Object System.Drawing.Point(24, 140)
+    $footer.Location = New-Object System.Drawing.Point(30, 160)
 
     $timer = New-Object System.Windows.Forms.Timer
-    $timer.Interval = 60
+    $timer.Interval = 55
     $currentStage = 0
 
     $timer.Add_Tick({
@@ -241,7 +295,7 @@ function Show-StartupStages {
         }
     })
 
-    $form.Controls.AddRange(@($title, $stageLabel, $progressBar, $footer))
+    $form.Controls.AddRange(@($title, $subtitle, $stageLabel, $progressBar, $footer))
     $form.Add_Shown({
         $stageLabel.Text = "Stage 1 of $($stages.Count): $($stages[0])"
         $timer.Start()
