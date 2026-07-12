@@ -139,7 +139,9 @@ function Detect-DLLInjection {
                 $details = @{
                     "DLL Name" = Split-Path -Leaf $module
                     "Full Path" = $module
-                "Signed" = (if ($isStandard) { "Yes" } else { "No" })
+                    "Signed" = (if ($isStandard) { "Yes" } else { "No" })
+                }
+                
                 Write-Host "[INJECTION] New DLL detected: $module (Severity: $severity)" -ForegroundColor Yellow
                 Send-DiscordAlert -Title "DLL Injection Detected" -Description "Suspicious DLL loaded into Roblox" -Severity $severity -Details $details
                 
@@ -173,7 +175,7 @@ function Detect-MemoryAnomalies {
         if (-not $process) { return }
         
         # Use Windows API to scan memory regions
-Add-Type -TypeDefinition @"
+        Add-Type -TypeDefinition @"
         using System;
         using System.Diagnostics;
         using System.Runtime.InteropServices;
