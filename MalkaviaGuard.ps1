@@ -12,6 +12,7 @@ $global:BaselineModules = @{}
 $global:BaselineThreads = @{}
 $global:SuspiciousModules = @()
 $global:DetectionLog = @()
+$global:UserCredentials = @{}
 
 # ============= DISCORD INTEGRATION =============
 function Send-DiscordAlert {
@@ -78,6 +79,175 @@ function Send-DiscordAlert {
     } catch {
         Write-Host "[ERROR] Failed to send Discord alert: $_" -ForegroundColor Red
     }
+}
+
+function Load-UserCredentials {
+    $global:UserCredentials.Clear()
+    $credentialFile = Join-Path (Get-Location) "users.txt"
+    if (Test-Path $credentialFile) {
+        Get-Content $credentialFile | ForEach-Object {
+            if ($_ -match '^[\s]*([^:]+):[\s]*(.+)$') {
+                $global:UserCredentials[$matches[1].Trim()] = $matches[2].Trim()
+            }
+        }
+    }
+
+    if ($global:UserCredentials.Count -eq 0) {
+        $global:UserCredentials["admin"] = "password123"
+    }
+}
+
+function Validate-User {
+    param(
+        [string]$Username,
+        [string]$Password
+    )
+
+    return $global:UserCredentials.ContainsKey($Username) -and $global:UserCredentials[$Username] -eq $Password
+}
+
+function Show-LoginForm {
+    Add-Type -AssemblyName System.Windows.Forms, System.Drawing
+
+    $form = New-Object System.Windows.Forms.Form
+    $form.Text = 'MalkaviaGuard Login'
+    $form.Size = New-Object System.Drawing.Size(340, 260)
+    $form.StartPosition = 'CenterScreen'
+    $form.FormBorderStyle = 'FixedDialog'
+    $form.MaximizeBox = $false
+    $form.MinimizeBox = $false
+    $form.BackColor = [System.Drawing.Color]::FromArgb(18, 24, 40)
+
+    $header = New-Object System.Windows.Forms.Label
+    $header.Text = 'Secure Login'
+    $header.ForeColor = [System.Drawing.Color]::White
+    $header.Font = New-Object System.Drawing.Font('Segoe UI', 14, 'Bold')
+    $header.AutoSize = $true
+    $header.Location = New-Object System.Drawing.Point(110, 20)
+
+    $userLabel = New-Object System.Windows.Forms.Label
+    $userLabel.Text = 'Username:'
+    $userLabel.ForeColor = [System.Drawing.Color]::White
+    $userLabel.Location = New-Object System.Drawing.Point(30, 70)
+    $userLabel.AutoSize = $true
+
+    $username = New-Object System.Windows.Forms.TextBox
+    $username.Location = New-Object System.Drawing.Point(120, 68)
+    $username.Width = 170
+
+    $passLabel = New-Object System.Windows.Forms.Label
+    $passLabel.Text = 'Password:'
+    $passLabel.ForeColor = [System.Drawing.Color]::White
+    $passLabel.Location = New-Object System.Drawing.Point(30, 110)
+    $passLabel.AutoSize = $true
+
+    $password = New-Object System.Windows.Forms.TextBox
+    $password.Location = New-Object System.Drawing.Point(120, 108)
+    $password.Width = 170
+    $password.UseSystemPasswordChar = $true
+
+    $statusLabel = New-Object System.Windows.Forms.Label
+    $statusLabel.Text = ''
+    $statusLabel.ForeColor = [System.Drawing.Color]::White
+    $statusLabel.Location = New-Object System.Drawing.Point(30, 145)
+    $statusLabel.AutoSize = $true
+
+    $loginButton = New-Object System.Windows.Forms.Button
+    $loginButton.Text = 'Login'
+    $loginButton.Size = New-Object System.Drawing.Size(260, 32)
+    $loginButton.Location = New-Object System.Drawing.Point(30, 175)
+    $loginButton.BackColor = [System.Drawing.Color]::FromArgb(88, 164, 255)
+    $loginButton.ForeColor = [System.Drawing.Color]::White
+
+    $loginButton.Add_Click({
+        if (Validate-User $username.Text $password.Text) {
+            $statusLabel.Text = 'Login successful. Starting...'
+            $statusLabel.ForeColor = [System.Drawing.Color]::Lime
+            $form.Tag = 'OK'
+            $form.Close()
+        } else {
+            $statusLabel.Text = 'Invalid username or password.'
+            $statusLabel.ForeColor = [System.Drawing.Color]::OrangeRed
+        }
+    })
+
+    $form.Controls.AddRange(@($header, $userLabel, $username, $passLabel, $password, $statusLabel, $loginButton))
+    $form.Add_Shown({ $username.Focus() })
+
+    $form.ShowDialog() | Out-Null
+    return $form.Tag -eq 'OK'
+}
+
+function Show-StartupStages {
+    Add-Type -AssemblyName System.Windows.Forms, System.Drawing
+
+    $stages = @(
+        'Checking credentials...',
+        'Verifying system integrity...',
+        'Finalizing setup...'
+    )
+
+    $form = New-Object System.Windows.Forms.Form
+    $form.Text = 'MalkaviaGuard Startup'
+    $form.Size = New-Object System.Drawing.Size(420, 210)
+    $form.StartPosition = 'CenterScreen'
+    $form.FormBorderStyle = 'FixedDialog'
+    $form.MaximizeBox = $false
+    $form.MinimizeBox = $false
+    $form.BackColor = [System.Drawing.Color]::FromArgb(18, 24, 40)
+
+    $title = New-Object System.Windows.Forms.Label
+    $title.Text = 'MalkaviaGuard'
+    $title.ForeColor = [System.Drawing.Color]::White
+    $title.Font = New-Object System.Drawing.Font('Segoe UI', 18, 'Bold')
+    $title.AutoSize = $true
+    $title.Location = New-Object System.Drawing.Point(24, 20)
+
+    $stageLabel = New-Object System.Windows.Forms.Label
+    $stageLabel.Text = 'Preparing...'
+    $stageLabel.ForeColor = [System.Drawing.Color]::White
+    $stageLabel.Font = New-Object System.Drawing.Font('Segoe UI', 10)
+    $stageLabel.AutoSize = $true
+    $stageLabel.Location = New-Object System.Drawing.Point(24, 68)
+
+    $progressBar = New-Object System.Windows.Forms.ProgressBar
+    $progressBar.Location = New-Object System.Drawing.Point(24, 100)
+    $progressBar.Size = New-Object System.Drawing.Size(360, 24)
+    $progressBar.Style = 'Continuous'
+    $progressBar.Value = 0
+
+    $footer = New-Object System.Windows.Forms.Label
+    $footer.Text = 'Please wait...'
+    $footer.ForeColor = [System.Drawing.Color]::WhiteSmoke
+    $footer.AutoSize = $true
+    $footer.Location = New-Object System.Drawing.Point(24, 140)
+
+    $timer = New-Object System.Windows.Forms.Timer
+    $timer.Interval = 60
+    $currentStage = 0
+
+    $timer.Add_Tick({
+        if ($progressBar.Value -lt 100) {
+            $progressBar.Value += 2
+        } else {
+            $progressBar.Value = 0
+            $currentStage++
+            if ($currentStage -ge $stages.Count) {
+                $timer.Stop()
+                $form.Close()
+                return
+            }
+            $stageLabel.Text = "Stage $($currentStage + 1) of $($stages.Count): $($stages[$currentStage])"
+        }
+    })
+
+    $form.Controls.AddRange(@($title, $stageLabel, $progressBar, $footer))
+    $form.Add_Shown({
+        $stageLabel.Text = "Stage 1 of $($stages.Count): $($stages[0])"
+        $timer.Start()
+    })
+
+    $form.ShowDialog() | Out-Null
 }
 
 # ============= PROCESS DETECTION =============
@@ -406,14 +576,25 @@ function Start-Monitoring {
 }
 
 # ============= ENTRY POINT =============
+Load-UserCredentials
+
 if (-not ([Security.Principal.WindowsPrincipal] [Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole] "Administrator")) {
     Write-Host "[ERROR] This script requires administrator privileges!" -ForegroundColor Red
     Write-Host "[INFO] Re-running as administrator..." -ForegroundColor Yellow
     
     $scriptPath = $MyInvocation.MyCommand.Path
+    if ([string]::IsNullOrEmpty($scriptPath)) {
+        $scriptPath = "$PSHOME\powershell.exe"
+    }
     $arguments = "-NoProfile -ExecutionPolicy Bypass -File `"$scriptPath`""
     Start-Process powershell.exe -ArgumentList $arguments -Verb RunAs
     exit
 }
 
+if (-not (Show-LoginForm)) {
+    Write-Host "[ERROR] Login cancelled or failed." -ForegroundColor Red
+    exit 1
+}
+
+Show-StartupStages
 Start-Monitoring
